@@ -16,6 +16,11 @@ func main() {
 	
 	const port = "8080"
 	const filepathRoot = "."
+
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM environment variable is not set")
+	}
 	
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
@@ -26,10 +31,11 @@ func main() {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 	defer dbConn.Close()
-	
+
 	dbQueries := database.New(dbConn)
 	
 	apiCfg := &apiConfig{
+		platform: platform,
 		db: dbQueries,
 	}
 
@@ -37,9 +43,14 @@ func main() {
 	handler := http.StripPrefix("/app/", http.FileServer(http.Dir(filepathRoot)))
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(handler))
 	mux.HandleFunc("GET /api/healthz", readinessHandler)
-	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
+	mux.HandleFunc("POST /api/users", apiCfg.createUserHandler)
+	mux.HandleFunc("POST /api/chirps", apiCfg.createChirpHandler)
+	mux.HandleFunc("GET /api/chirps", apiCfg.listChirpsHandler)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.getChirpHandler)
+
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
 	mux.HandleFunc("POST /admin/reset", apiCfg.resetMetricsHandler)
+	
 
 	srv := &http.Server{
 		Addr:    ":" + port,

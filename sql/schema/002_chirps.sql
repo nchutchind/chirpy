@@ -1,0 +1,15 @@
+-- +goose Up
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+DROP TABLE IF EXISTS chirps;
+
+CREATE TABLE chirps (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    body TEXT NOT NULL,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS chirps;
