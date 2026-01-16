@@ -1,10 +1,11 @@
 -- name: CreateUser :one
-INSERT INTO users (id, created_at, updated_at, email)
+INSERT INTO users (id, created_at, updated_at, email, hashed_password)
 VALUES (
     gen_random_uuid(),
     NOW(),
     NOW(),
-    $1
+    $1,
+    $2
 )
 RETURNING *;
 
@@ -13,6 +14,12 @@ SELECT * FROM users WHERE email = $1;
 
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
+
+-- name: GetUserFromRefreshToken :one
+SELECT u.* 
+FROM users u
+JOIN refresh_tokens rt ON u.id = rt.user_id
+WHERE rt.token = $1 AND (rt.expires_at > NOW()) AND (rt.revoked_at IS NULL);
 
 -- name: ResetUsers :exec
 DELETE FROM users;

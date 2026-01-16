@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -19,14 +18,13 @@ func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) resetMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	if cfg.platform != "dev" {
-		http.Error(w, "Metrics reset is disabled in non-dev environment", http.StatusForbidden)
+		respondWithError(w, http.StatusForbidden, "Metrics reset is disabled in non-dev environment", nil)
 		return
 	}
 	cfg.fileserverHits.Store(0)
 	err := cfg.db.ResetUsers(r.Context())
 	if err != nil {
-		log.Println("Error resetting users in database:", err)
-		http.Error(w, "Failed to reset users in database", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Failed to reset users in database", err)
 		return
 	}
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
