@@ -26,3 +26,20 @@ DELETE FROM users;
 
 -- name: ListUsers :many
 SELECT * FROM users;
+
+-- name: UpdateUser :one
+UPDATE users
+SET
+    updated_at = NOW(),
+    email = COALESCE($2, email),
+    hashed_password = COALESCE($3, hashed_password)
+WHERE id = $1
+RETURNING *;
+
+-- name: SetChirpyRedStatus :one
+UPDATE users
+SET
+    updated_at = NOW(),
+    is_chirpy_red = $2
+WHERE id = $1
+RETURNING *;

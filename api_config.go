@@ -11,5 +11,6 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	jwtSecret      string
+	polkaKey       string
 }
 

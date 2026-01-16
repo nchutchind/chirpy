@@ -31,11 +31,17 @@ func main() {
 	if platform == "" {
 		log.Fatal("PLATFORM environment variable is not set")
 	}
+
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatal("POLKA_KEY environment variable is not set")
+	}	
 	
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL environment variable is not set")
 	}
+
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
@@ -48,6 +54,7 @@ func main() {
 		platform: platform,
 		db: dbQueries,
 		jwtSecret: jwtSecret,
+		polkaKey: polkaKey,
 	}
 
 	mux := http.NewServeMux()
@@ -59,9 +66,13 @@ func main() {
 	mux.HandleFunc("POST /api/refresh", apiCfg.refreshTokenHandler)
 	mux.HandleFunc("POST /api/revoke", apiCfg.revokeRefreshTokenHandler)
 	mux.HandleFunc("POST /api/users", apiCfg.createUserHandler)
+	mux.HandleFunc("PUT /api/users", apiCfg.updateUserHandler)
 	mux.HandleFunc("POST /api/chirps", apiCfg.createChirpHandler)
 	mux.HandleFunc("GET /api/chirps", apiCfg.listChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.getChirpHandler)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.deleteChirpHandler)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.polkaWebhooksHandler)
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
 	mux.HandleFunc("POST /admin/reset", apiCfg.resetMetricsHandler)

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -99,8 +100,8 @@ func (cfg *apiConfig) listChirpsHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
-	chirpIDStr := strings.TrimPrefix(r.URL.Path, "/api/chirps/")
-	chirpID, err := uuid.Parse(chirpIDStr)
+	chirpIDString := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpIDString)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID", err)
 		return
@@ -108,7 +109,7 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 	chirp, err := cfg.db.GetChirp(r.Context(), chirpID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			respondWithError(w, http.StatusNotFound, "Chirp not found", err)
 			return
 		} else {
@@ -124,6 +125,49 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
 		Body:      chirp.Body,
 		UserID:    chirp.UserID,
 	})
+}
+
+func (cfg *apiConfig) deleteChirpHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Missing or invalid Authorization header", err)
+		return
+	}
+	
+	userId, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid token", err)
+		return
+	}
+
+	chirpIDString := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpIDString)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID", err)
+		return
+	}
+
+	chirp, err := cfg.db.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "Chirp not found", err)
+			return
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "Failed to get chirp", err)
+			return
+		}
+	}
+	
+	if chirp.UserID != userId {
+		respondWithError(w, http.StatusForbidden, "You do not have permission to delete this chirp", nil)
+		return
+	}
+	err = cfg.db.DeleteChirp(r.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to delete chirp", err)
+		return
+	}
+	respondWithJSON(w, http.StatusNoContent, nil)
 }
 
 func sanitizeChirp(body string) string {
